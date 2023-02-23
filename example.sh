@@ -1,3 +1,3 @@
 #!/bin/bash
-perl /homes/liu3zhen/scripts2/ndotplot/ndotplot --ref data/B71Ref2.fasta --query data/T3.contigs.fasta --threads 4
+perl ndotplot --query data/qry.fas --ref data/ref.fas --minaln 1000 --prefix out
 
