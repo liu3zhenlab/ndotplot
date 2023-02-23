@@ -8,7 +8,7 @@ The Nucmer module in software [Mummer](https://mummer.sourceforge.net/) is requi
 
 ### Installation of ndotplot
 ```
-git clone 
+git clone git@github.com:liu3zhenlab/ndotplot.git
 cd ndotplot
 perl ndotplot
 ```
