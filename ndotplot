@@ -1,0 +1,263 @@
+#!/usr/bin/perl -w
+#======================================================================
+# ndoplot
+# Author: Sanzhen Liu <liu3zhen@ksu.edu>
+# v0.0.1: 10/7/2022
+# v0.0.2: 1/22/2023
+# 	added the option to extract sequences for dotplot
+# Perl script to do dotplot
+#======================================================================
+
+use strict;
+use warnings;
+use Getopt::Long;
+use File::Temp;
+use FindBin;
+use Term::ANSIColor qw(:constants);
+
+my $version = "0.0.3";
+
+my $prefix = "seqcom";
+my $qseqrm = "";
+my $rseqrm = "";
+my $threads = 1;
+my $minaln = 10000;
+my $min_identity = 90;
+my $alnmode = "mum";
+
+sub prompt {
+    print <<EOF;
+    Usage: perl $0 --query <fasta> --ref <ref> [options]
+    [Options]
+    --query <fasta>  query fasta file; required
+    --qryname <str>  extract from --query if not specified
+    --ref <fasta>    reference fasta file; required
+    --refname <str>  extract from --ref if not specified
+    --alnmode <str>  Nucmer alignment mode: nucmerdefault, mum or maxmatch ($alnmode)
+    --nosimplify     pass this parameter to Nucmer if specified
+    --qsub <str>     name list of sequences-of-interest in qry; separated by comma if multiple names are input; optional
+    --rsub <str>     name list of sequences-of-interest in ref; separated by comma if multiple names are input; optional
+    --minaln <num>   bp of minimum alignment ($minaln)
+    --identity <num> percentation of minimum identity ($min_identity)
+    --prefix <str>   prefix for output files ($prefix)
+    --qseqrm <str>   string (regular expression) to remove from sequence names of query ($qseqrm)
+    --rseqrm <str>   string (regular expression) to remove from sequence names of reference ($rseqrm)
+    --threads <num>  number of CPU ($threads)
+    --version        version information
+    --help:          help information.
+EOF
+exit;
+}
+
+###############################################
+# parameters:
+###############################################
+my %opts = ();
+&GetOptions(\%opts, "query=s", "ref=s",
+					"qryname=s", "refname=s",
+					"qsub=s", "rsub=s",
+					"alnmode=s", "nosimplify",
+					"minaln=i", "identity=i",
+					"qseqrm=s", "rseqrm=s",
+					"prefix=s", "threads=i",
+					"version", "help");
+
+if (exists $opts{version}) {
+	print "$version\n";
+	exit;
+}
+
+&prompt if exists $opts{help} or !%opts;
+
+if (!exists $opts{query} or !exists $opts{ref}) {
+	print STDERR RED, "  --query and --ref are required\n", RESET;
+	&prompt;
+}
+
+my ($qryname, $refname);
+my $query_original = $opts{query} if exists $opts{query};
+my $query = $query_original;
+if (!-f $query_original) {
+	print STDERR RED, "  $query_original does not exits\n", RESET;
+	exit;
+}
+
+if (exists $opts{qryname}) {
+	$qryname = $opts{qryname};
+} else {
+	$qryname = $query;
+	$qryname =~ s/.*\///g;
+	$qryname =~ s/.fasta$|.fas$|.fa$//g;
+}
+
+my $ref_original = $opts{ref} if exists $opts{ref};
+my $ref = $ref_original;
+if (!-f $ref_original) {
+	print STDERR RED, "  $ref_original does not exits\n", RESET;
+	exit;
+}
+
+if (exists $opts{refname}) {
+	$refname = $opts{refname};
+} else {
+	$refname = $ref;
+	$refname =~ s/.*\///g;
+	$refname =~ s/.fasta$|.fas$|.fa$//g;
+}
+
+my $qsub = "";
+my $rsub = "";
+$qsub = $opts{qsub} if exists $opts{qsub};
+$rsub = $opts{rsub} if exists $opts{rsub};
+
+my $nosimplify = "";
+$nosimplify = "--nosimplify" if exists $opts{nosimplify};
+
+$qseqrm = $opts{qseqrm} if exists $opts{qseqrm};
+$rseqrm = $opts{rseqrm} if exists $opts{rseqrm};
+
+$prefix = $opts{prefix} if exists $opts{prefix};
+$threads = $opts{threads} if exists $opts{threads};
+$minaln = $opts{minaln} if exists $opts{minaln};
+$min_identity = $opts{identity} if exists $opts{identity};
+if (($alnmode ne "nucmerdefault") and ($alnmode ne "mum") and ($alnmode ne "maxmatch")) {
+	print STDERR RED, "  --alnmode must be nucmerdefault, mum, or maxmatch\n", RESET;
+	exit;
+} else {
+	$alnmode = $opts{alnmode} if exists $opts{alnmode};
+}
+
+###############################################
+# preparation
+###############################################
+# script path:
+my $scriptPath = $FindBin::Bin;
+my $utilsPath = $scriptPath."/utils/";
+#my $libPath = $scriptPath."/libs/";
+
+###############################################
+# check requirments
+###############################################
+&cmd_check("nucmer");
+&cmd_check("R");
+&cmd_check("delta-filter");
+&cmd_check("show-coords");
+
+&runreport("Requirement checked");
+
+###############################################
+# intermediate output
+###############################################
+# nucmer output
+if (!-d $prefix) {
+	mkdir $prefix
+}
+
+# extract query subset
+if (exists $opts{qsub}) {
+	$query = $prefix."/00_qrysub.fasta";
+	&seqextract($query_original, $opts{qsub}, $query);
+}
+
+# extract ref subset
+if (exists $opts{rsub}) {
+	$ref = $prefix."/00_refsub.fasta";
+	&seqextract($ref_original, $opts{rsub}, $ref);
+}
+
+my $nucmer_delta = $prefix."/01_delta";
+my $nucmer_show = $prefix."/02_delta.txt";
+my $dotplot_pdf = $prefix."/03_dotplot.pdf";
+
+###############################################
+# extract sequences
+###############################################
+# $ref $query
+
+
+###############################################
+# compare with ref via nucmer
+###############################################
+if ($alnmode eq "mum") {
+	`nucmer $nosimplify --mum --delta $nucmer_delta --threads $threads $ref $query`;
+} elsif ($alnmode eq "maxmatch") {
+	`nucmer $nosimplify --maxmatch --delta $nucmer_delta --threads $threads $ref $query`;
+} elsif ($alnmode eq "nucmerdefault") {
+	`nucmer $nosimplify --delta $nucmer_delta --threads $threads $ref $query`;
+}
+
+`echo -e "rstart\trend\tqstart\tqend\trmatch\tqmatch\tidentity\trlen\tqlen\trperc\tqperc\tref\tqry" > $nucmer_show`;
+`show-coords -clTH -q -L $minaln -I $min_identity $nucmer_delta >> $nucmer_show`;
+&runreport("Nucmer alignment done");
+
+###############################################
+# dotplot 
+###############################################
+my $dotplot_r = $utilsPath."/dotplot.R";
+my $nucmer_show_nrows=`wc -l $nucmer_show`;
+$nucmer_show_nrows =~ s/ .*//g;
+if ($nucmer_show_nrows > 1) {
+	`Rscript $dotplot_r $nucmer_show "$qryname" "$refname" "$qseqrm" "$rseqrm" $dotplot_pdf`;
+	&runreport("Dotplot generated");
+} else {
+	&runreport("no alignments passing the criteria:\n  --minaln $minaln and --identity $min_identity\n");
+}
+###############################################
+# module 1: check command availability
+###############################################
+sub cmd_check {
+	my $cmd = shift;
+	my $cmdPath=`which $cmd 2>/dev/null`;
+	if (!$cmdPath) {# not founded
+		print STDERR RED, "  $cmd is not found\n", RESET;
+		print STDERR RED, "Exit\n", RESET;
+		exit;
+	}
+}
+
+###############################################
+# module 2: report running result
+###############################################
+# funtion to report running return
+sub runreport {
+	my $injob = shift;
+    my $dateinfo = `date +'o %Y-%m-%d %H:%M:%S'`;
+	print STDERR MAGENTA, "$dateinfo", RESET;
+	print STDERR "  $injob.\n";
+}
+
+###############################################
+# module 3: seqextract
+###############################################
+# function to extract subset sequences
+sub seqextract {
+	my ($seq_name, $seq);
+	my ($infas, $innames, $outfas) = @_;
+	$innames =~ s/ //g;
+	my @innames = split(",", $innames);
+	my %innames;
+	for (@innames) {
+		$innames{$_}++;
+	}	
+	open(OUT, ">", $outfas) || die;
+	open(IN, "<", $infas) || die;
+	while (<IN>) {
+		chomp;
+		if (/^>(\S+)/) {
+			if (defined $seq_name and exists $innames{$seq_name}) {
+				print OUT ">$seq_name\n$seq\n";
+			}
+    		$seq_name = $1;
+			$seq = "";
+	 	 } else {
+			$seq .= $_;
+		}
+	}
+	# last element:
+	if (exists $innames{$seq_name}) {
+		print OUT ">$seq_name\n$seq\n";
+	}
+	close IN;
+	close OUT;
+}
+
