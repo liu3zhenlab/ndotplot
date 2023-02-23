@@ -2,11 +2,12 @@
 Plot a dotplot using Nucmer alignments
 
 ### Requirements
-The script was written with Perl and R is invoked. Both Perl and R are generally installed. If needed, please refer to [Perl](https://www.perl.org/) and [R](https://www.r-project.org/) for installation guides. 
+The script was written with Perl and R is used for plotting. If needed, please refer to [Perl](https://www.perl.org/) and [R](https://www.r-project.org/) for installation guides. 
 
 The Nucmer module in software [Mummer](https://mummer.sourceforge.net/) is required.
 
-### Installation of ndotplot
+### ndotplot installation
+Actually, no installation is needed. The scripts can be downloaded from GitHub and directly used to run.
 ```
 git clone git@github.com:liu3zhenlab/ndotplot.git
 cd ndotplot
