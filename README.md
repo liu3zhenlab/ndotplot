@@ -2,11 +2,12 @@
 Plot a dotplot using Nucmer alignments
 
 ### Requirements
-The script was written with Perl and R is invoked. Both Perl and R are generally installed. If needed, please refer to [Perl](https://www.perl.org/) and [R](https://www.r-project.org/) for installation guides. 
+The script was written with Perl and R is used for plotting. If needed, please refer to [Perl](https://www.perl.org/) and [R](https://www.r-project.org/) for installation guides. 
 
 The Nucmer module in software [Mummer](https://mummer.sourceforge.net/) is required.
 
-### Installation of ndotplot
+### ndotplot installation
+Actually, no installation is needed. The scripts can be downloaded from GitHub and directly used to run.
 ```
 git clone git@github.com:liu3zhenlab/ndotplot.git
 cd ndotplot
@@ -20,7 +21,7 @@ Two sequence fasta files to be compared are required. In each file, multiple seq
 ```
 perl ndotplot --query data/qry.fas --ref data/ref.fas --minaln 1000 --prefix out
 ```
-A editable PDF output was produced in the *out* directory.  
+A editable PDF output will be produced in the "**out**" directory.  
 <img src="data/example.dotplot.png" alt="comparisonplot" width=500 />
 
 
