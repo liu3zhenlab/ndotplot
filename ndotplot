@@ -15,7 +15,8 @@ use File::Temp;
 use FindBin;
 use Term::ANSIColor qw(:constants);
 
-my $version = "0.0.3";
+my $version = "0.0.4";
+# 9/26/2024: 
 
 my $prefix = "seqcom";
 my $qseqrm = "";
@@ -24,6 +25,7 @@ my $threads = 1;
 my $minaln = 10000;
 my $min_identity = 90;
 my $alnmode = "mum";
+my $line_width = 3.5;
 
 sub prompt {
     print <<EOF;
@@ -42,6 +44,8 @@ sub prompt {
     --prefix <str>   prefix for output files ($prefix)
     --qseqrm <str>   string (regular expression) to remove from sequence names of query ($qseqrm)
     --rseqrm <str>   string (regular expression) to remove from sequence names of reference ($rseqrm)
+    --linewidth <f>  line width ($line_width)
+    --expandoff      expansion of lines for short alignments (<1/50 total length) is off if specified; on by default
     --threads <num>  number of CPU ($threads)
     --version        version information
     --help:          help information.
@@ -59,6 +63,7 @@ my %opts = ();
 					"alnmode=s", "nosimplify",
 					"minaln=i", "identity=i",
 					"qseqrm=s", "rseqrm=s",
+					"linewidth=f", "expandoff",
 					"prefix=s", "threads=i",
 					"version", "help");
 
@@ -115,6 +120,9 @@ $nosimplify = "--nosimplify" if exists $opts{nosimplify};
 
 $qseqrm = $opts{qseqrm} if exists $opts{qseqrm};
 $rseqrm = $opts{rseqrm} if exists $opts{rseqrm};
+$line_width = $opts{linewidth} if exists $opts{linewidth};
+my $expandoff = "no";
+$expandoff = "yes" if exists $opts{expandoff};
 
 $prefix = $opts{prefix} if exists $opts{prefix};
 $threads = $opts{threads} if exists $opts{threads};
@@ -197,7 +205,7 @@ my $dotplot_r = $utilsPath."/dotplot.R";
 my $nucmer_show_nrows=`wc -l $nucmer_show`;
 $nucmer_show_nrows =~ s/ .*//g;
 if ($nucmer_show_nrows > 1) {
-	`Rscript $dotplot_r $nucmer_show "$qryname" "$refname" "$qseqrm" "$rseqrm" $dotplot_pdf`;
+	`Rscript $dotplot_r $nucmer_show "$qryname" "$refname" "$qseqrm" "$rseqrm" $line_width $expandoff $dotplot_pdf`;
 	&runreport("Dotplot generated");
 } else {
 	&runreport("no alignments passing the criteria:\n  --minaln $minaln and --identity $min_identity\n");

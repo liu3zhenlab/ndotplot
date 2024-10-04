@@ -4,7 +4,17 @@ qryname <- args[2]
 refname <- args[3]
 qseqrm <- args[4]
 rseqrm <- args[5]
-outpdf <- args[6] # PDF output file
+linewidth <- args[6]
+expandoff <- args[7] # no or yes
+outpdf <- args[8] # PDF output file
+
+linewidth <- as.numeric(linewidth)
+
+if (expandoff == "yes") {
+	lend.turnoff <- TRUE
+} else {
+	lend.turnoff <- FALSE
+}
 
 dotplot <- function(datafile, lend.turnoff=F,
                     refname="ref", qryname="asm",
@@ -104,7 +114,7 @@ dotplot <- function(datafile, lend.turnoff=F,
     
     lines(c(co$first.accum.s[i], co$first.accum.e[i]),
           c(co$second.accum.s[i], co$second.accum.e[i]),
-          lwd=lend.val*line.width.factor, col= plot.col, lend=lend.val)
+          lwd=lend.val*line.width.factor, col=plot.col, lend=lend.val)
   }
   
   first.coord <- (c(first.accum[-1], sum(first.contigs.size)) + first.accum) / 2
@@ -125,5 +135,7 @@ dotplot <- function(datafile, lend.turnoff=F,
 
 # plot
 dotplot(datafile=nucmer_show, refname=refname, qryname=qryname,
-        xlabel.rm=rseqrm, ylabel.rm=qseqrm, outpdf=outpdf)
+        xlabel.rm=rseqrm, ylabel.rm=qseqrm,
+		lend.turnoff=lend.turnoff, line.width.factor=linewidth,
+		outpdf=outpdf)
 
