@@ -6,8 +6,8 @@ qseqrm <- args[4]
 rseqrm <- args[5]
 linewidth <- args[6]
 expandoff <- args[7] # no or yes
-rorder <- args[8] # order ref contigs
-qorder <- args[9] # order query contigs
+rorder_in <- args[8] # order ref contigs
+qorder_in <- args[9] # order query contigs
 outpdf <- args[10] # PDF output file
 
 ### parameter processing
@@ -19,18 +19,18 @@ if (expandoff == "yes") {
 	lend.turnoff <- FALSE
 }
 
-if (rorder != "null") {
-  rorder <- gsub(" ", "", rorder)
-  rorder_set <- strsplit(rorder, ",")[[1]]
+if (rorder_in != "null") {
+  rorder_in <- gsub(" ", "", rorder_in)
+  rorder <- strsplit(rorder_in, ",")[[1]]
 } else {
-  rorder_set <- NULL
+  rorder <- NULL
 }
 
-if (qorder != "null") {
-  qorder <- gsub(" ", "", qorder)
-  qorder_set <- strsplit(qorder, ",")[[1]]
+if (qorder_in != "null") {
+  qorder_in <- gsub(" ", "", qorder_in)
+  qorder <- strsplit(qorder_in, ",")[[1]]
 } else {
-  qorder_set <- NULL
+  qorder <- NULL
 }
 
 ### main function
@@ -65,13 +65,19 @@ dotplot <- function(datafile, lend.turnoff=F,
   
   # if ordering referennce contigs is requested
   if (!is.null(rorder)) {
-    rorder <- rorder[rorder %in% unique(co$first)]
+    first_sn <- unique(co$first)
+    rorder <- rorder[rorder %in% first_sn] # only consider "rorder" in the alignment
+    first_sn_not <- first_sn[! first_sn %in% rorder]
+    rorder <- c(rorder, first_sn_not)
     first.contigs.size <- first.contigs.size[rorder]
   }
   
   # if ordering query contigs is requested
   if (!is.null(qorder)) {
-    qorder <- qorder[qorder %in% unique(co$second)]
+    second_sn <- unique(co$second)
+    qorder <- qorder[qorder %in% second_sn]
+    second_sn_not <- second_sn[! second_sn %in% qorder]
+    qorder <- c(qorder, second_sn_not)
     second.contigs.size <- second.contigs.size[qorder]
   }
   
@@ -166,6 +172,6 @@ dotplot <- function(datafile, lend.turnoff=F,
 dotplot(datafile=nucmer_show, refname=refname, qryname=qryname,
         xlabel.rm=rseqrm, ylabel.rm=qseqrm,
         lend.turnoff=lend.turnoff, line.width.factor=linewidth,
-        rorder=rorder_set, qorder=qorder_set,
+        rorder=rorder, qorder=qorder,
         outpdf=outpdf)
 
