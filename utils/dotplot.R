@@ -6,8 +6,11 @@ qseqrm <- args[4]
 rseqrm <- args[5]
 linewidth <- args[6]
 expandoff <- args[7] # no or yes
-outpdf <- args[8] # PDF output file
+rorder <- args[8] # order ref contigs
+qorder <- args[9] # order query contigs
+outpdf <- args[10] # PDF output file
 
+### parameter processing
 linewidth <- as.numeric(linewidth)
 
 if (expandoff == "yes") {
@@ -16,12 +19,28 @@ if (expandoff == "yes") {
 	lend.turnoff <- FALSE
 }
 
+if (rorder != "null") {
+  rorder <- gsub(" ", "", rorder)
+  rorder_set <- strsplit(rorder, ",")[[1]]
+} else {
+  rorder_set <- NULL
+}
+
+if (qorder != "null") {
+  qorder <- gsub(" ", "", qorder)
+  qorder_set <- strsplit(qorder, ",")[[1]]
+} else {
+  qorder_set <- NULL
+}
+
+### main function
 dotplot <- function(datafile, lend.turnoff=F,
                     refname="ref", qryname="asm",
-					xlabel.rm = "chr", ylabel.rm = "tig0+",
+                    xlabel.rm = "chr", ylabel.rm = "tig0+",
                     line.width.factor=3.5,
-					outpdf) {                  
-  stopifnot(file.exists(datafile))	
+                    rorder=NULL, qorder=NULL,
+                    outpdf) {                  
+  stopifnot(file.exists(datafile))
   pdf.width = 6
   pdf.height = 6
   co <- read.delim(datafile, stringsAsFactor=F)
@@ -42,9 +61,19 @@ dotplot <- function(datafile, lend.turnoff=F,
   co$second <- as.character(co$second)
   first.contigs.size <- tapply(co$firstl, co$first, max)
   second.contigs.size <- tapply(co$secondl, co$second, max)
-  second.contigs.size <- second.contigs.size[unique(co$second)]
+  #second.contigs.size <- second.contigs.size[unique(co$second)]
   
-  print(second.contigs.size)
+  # if ordering referennce contigs is requested
+  if (!is.null(rorder)) {
+    rorder <- rorder[rorder %in% unique(co$first)]
+    first.contigs.size <- first.contigs.size[rorder]
+  }
+  
+  # if ordering query contigs is requested
+  if (!is.null(qorder)) {
+    qorder <- qorder[qorder %in% unique(co$second)]
+    second.contigs.size <- second.contigs.size[qorder]
+  }
   
   ### maximum values for each contig:
   nfirst <- length(first.contigs.size)
@@ -114,28 +143,29 @@ dotplot <- function(datafile, lend.turnoff=F,
     
     lines(c(co$first.accum.s[i], co$first.accum.e[i]),
           c(co$second.accum.s[i], co$second.accum.e[i]),
-          lwd=lend.val*line.width.factor, col=plot.col, lend=lend.val)
+          lwd=line.width.factor, col=plot.col, lend=lend.val)
   }
   
   first.coord <- (c(first.accum[-1], sum(first.contigs.size)) + first.accum) / 2
-  cat(first.coord)
+  #cat(first.coord)
   second.coord <- (c(second.accum[-1], sum(second.contigs.size)) + second.accum) / 2
-  cat(second.coord)
+  #cat(second.coord)
   xlabels <- names(first.accum)
   xlabels <- gsub(xlabel.rm, "", xlabels)
   ylabels <- names(second.accum)
-  cat("--", ylabels, "\n")
+  #cat("--", ylabels, "\n")
   ylabels <- gsub(ylabel.rm, "", ylabels)
-  cat("==", ylabels, "\n")
+  #cat("==", ylabels, "\n")
   text(x=first.coord, y= - max.ysize / 50, labels=xlabels, cex = 0.8, xpd = T)
   text(x= - max.xsize / 40, y=second.coord, labels=ylabels, cex = 0.8, xpd = T)
   
-  dev.off()
+  invisible(dev.off())
 }
 
 # plot
 dotplot(datafile=nucmer_show, refname=refname, qryname=qryname,
         xlabel.rm=rseqrm, ylabel.rm=qseqrm,
-		lend.turnoff=lend.turnoff, line.width.factor=linewidth,
-		outpdf=outpdf)
+        lend.turnoff=lend.turnoff, line.width.factor=linewidth,
+        rorder=rorder_set, qorder=qorder_set,
+        outpdf=outpdf)
 

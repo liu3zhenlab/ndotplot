@@ -2,9 +2,6 @@
 #======================================================================
 # ndoplot
 # Author: Sanzhen Liu <liu3zhen@ksu.edu>
-# v0.0.1: 10/7/2022
-# v0.0.2: 1/22/2023
-# 	added the option to extract sequences for dotplot
 # Perl script to do dotplot
 #======================================================================
 
@@ -13,19 +10,27 @@ use warnings;
 use Getopt::Long;
 use File::Temp;
 use FindBin;
+use lib "$FindBin::Bin/lib";
+use dotplotpm;
 use Term::ANSIColor qw(:constants);
 
-my $version = "0.0.4";
-# 9/26/2024: 
+my $version = "0.1.1";
+# 0.1.1: 7/10/2026
+#        added --rorder and --qorder  
+# 0.1.0: 9/26/2024
+#        added --expandoff and --linewidth 
 
 my $prefix = "seqcom";
 my $qseqrm = "";
 my $rseqrm = "";
 my $threads = 1;
+my $minseed = 20;
 my $minaln = 10000;
 my $min_identity = 90;
 my $alnmode = "mum";
 my $line_width = 3.5;
+my $rorder = "null";
+my $qorder = "null";
 
 sub prompt {
     print <<EOF;
@@ -37,8 +42,15 @@ sub prompt {
     --refname <str>  extract from --ref if not specified
     --alnmode <str>  Nucmer alignment mode: nucmerdefault, mum or maxmatch ($alnmode)
     --nosimplify     pass this parameter to Nucmer if specified
-    --qsub <str>     name list of sequences-of-interest in qry; separated by comma if multiple names are input; optional
-    --rsub <str>     name list of sequences-of-interest in ref; separated by comma if multiple names are input; optional
+    --qsub <str>     name list of sequences-of-interest in qry;
+                     separated by comma if multiple names are input; optional
+    --rsub <str>     name list of sequences-of-interest in ref;
+                     separated by comma if multiple names are input; optional
+    --qorder <str>   list of query sequence names to be ordered on y-axis;
+                     separated by comma if multiple names are input ($qorder)
+    --rorder <str>   list of reference sequence names to be ordered on x-axis;
+                     separated by comma if multiple names are input ($rorder)
+    --minseed <num>  the minimal match for alignments, passing to Nucmer parameter of --minmatch if specified ($minseed)
     --minaln <num>   bp of minimum alignment ($minaln)
     --identity <num> percentation of minimum identity ($min_identity)
     --prefix <str>   prefix for output files ($prefix)
@@ -58,14 +70,15 @@ exit;
 ###############################################
 my %opts = ();
 &GetOptions(\%opts, "query=s", "ref=s",
-					"qryname=s", "refname=s",
-					"qsub=s", "rsub=s",
-					"alnmode=s", "nosimplify",
-					"minaln=i", "identity=i",
-					"qseqrm=s", "rseqrm=s",
-					"linewidth=f", "expandoff",
-					"prefix=s", "threads=i",
-					"version", "help");
+            "qryname=s", "refname=s",
+            "qsub=s", "rsub=s",
+            "alnmode=s", "nosimplify",
+            "minseed=i", "minaln=i", "identity=i",
+            "qseqrm=s", "rseqrm=s",
+            "qorder=s", "rorder=s",
+            "linewidth=f", "expandoff",
+            "prefix=s", "threads=i",
+            "version", "help");
 
 if (exists $opts{version}) {
 	print "$version\n";
@@ -112,8 +125,17 @@ if (exists $opts{refname}) {
 
 my $qsub = "";
 my $rsub = "";
-$qsub = $opts{qsub} if exists $opts{qsub};
-$rsub = $opts{rsub} if exists $opts{rsub};
+if (exists $opts{qsub}) {
+	$qsub = $opts{qsub};
+	# check name matching
+	&dotplotpm::seqnameCheck($query_original, $qsub);
+}
+
+if (exists $opts{rsub}) {
+	$rsub = $opts{rsub};
+	# check name matching
+	&dotplotpm::seqnameCheck($ref_original, $rsub);
+}
 
 my $nosimplify = "";
 $nosimplify = "--nosimplify" if exists $opts{nosimplify};
@@ -126,6 +148,7 @@ $expandoff = "yes" if exists $opts{expandoff};
 
 $prefix = $opts{prefix} if exists $opts{prefix};
 $threads = $opts{threads} if exists $opts{threads};
+$minseed = $opts{minseed} if exists $opts{minseed};
 $minaln = $opts{minaln} if exists $opts{minaln};
 $min_identity = $opts{identity} if exists $opts{identity};
 if (($alnmode ne "nucmerdefault") and ($alnmode ne "mum") and ($alnmode ne "maxmatch")) {
@@ -133,6 +156,19 @@ if (($alnmode ne "nucmerdefault") and ($alnmode ne "mum") and ($alnmode ne "maxm
 	exit;
 } else {
 	$alnmode = $opts{alnmode} if exists $opts{alnmode};
+}
+
+# rorder and qorder:
+if (exists $opts{rorder}) {
+	$rorder = $opts{rorder};
+	# check name matching
+	&dotplotpm::seqnameCheck($ref_original, $rorder);
+}
+
+if (exists $opts{qorder}) {
+	$qorder = $opts{qorder};
+	# check name matching
+	&dotplotpm::seqnameCheck($query_original, $qorder);
 }
 
 ###############################################
@@ -187,11 +223,11 @@ my $dotplot_pdf = $prefix."/03_dotplot.pdf";
 # compare with ref via nucmer
 ###############################################
 if ($alnmode eq "mum") {
-	`nucmer $nosimplify --mum --delta $nucmer_delta --threads $threads $ref $query`;
+	`nucmer $nosimplify --mum --delta $nucmer_delta --minmatch $minseed --threads $threads $ref $query`;
 } elsif ($alnmode eq "maxmatch") {
-	`nucmer $nosimplify --maxmatch --delta $nucmer_delta --threads $threads $ref $query`;
+	`nucmer $nosimplify --maxmatch --delta $nucmer_delta --minmatch $minseed --threads $threads $ref $query`;
 } elsif ($alnmode eq "nucmerdefault") {
-	`nucmer $nosimplify --delta $nucmer_delta --threads $threads $ref $query`;
+	`nucmer $nosimplify --delta $nucmer_delta --minmatch $minseed --threads $threads $ref $query`;
 }
 
 `echo -e "rstart\trend\tqstart\tqend\trmatch\tqmatch\tidentity\trlen\tqlen\trperc\tqperc\tref\tqry" > $nucmer_show`;
@@ -205,8 +241,22 @@ my $dotplot_r = $utilsPath."/dotplot.R";
 my $nucmer_show_nrows=`wc -l $nucmer_show`;
 $nucmer_show_nrows =~ s/ .*//g;
 if ($nucmer_show_nrows > 1) {
-	`Rscript $dotplot_r $nucmer_show "$qryname" "$refname" "$qseqrm" "$rseqrm" $line_width $expandoff $dotplot_pdf`;
-	&runreport("Dotplot generated");
+	#`Rscript $dotplot_r $nucmer_show "$qryname" "$refname" "$qseqrm" "$rseqrm" $line_width $expandoff "$rorder" "$qorder" $dotplot_pdf`;
+	system(
+            "Rscript",
+            $dotplot_r,
+            $nucmer_show,
+            $qryname,
+            $refname,
+            $qseqrm,
+            $rseqrm,
+            $line_width,
+            $expandoff,
+            $rorder,
+            $qorder,
+            $dotplot_pdf
+        );
+        &runreport("Dotplot generated");
 } else {
 	&runreport("no alignments passing the criteria:\n  --minaln $minaln and --identity $min_identity\n");
 }
