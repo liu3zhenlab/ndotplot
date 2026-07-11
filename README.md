@@ -19,7 +19,7 @@ Two sequence fasta files to be compared are required. In each file, multiple seq
 
 ### Example run
 ```
-perl ndotplot --query data/qry.fas --ref data/ref.fas --minaln 1000 --prefix out
+perl ../ndotplot --query ../data/qry.fas --ref ../data/ref.fas --minaln 1000 --prefix out
 ```
 A editable PDF output will be produced in the "**out**" directory.  
 <img src="data/example.dotplot.png" alt="comparisonplot" width=500 />
