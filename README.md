@@ -7,7 +7,7 @@ The script was written with Perl and R is used for plotting. If needed, please r
 The Nucmer module in software [Mummer](https://mummer.sourceforge.net/) is required.
 
 ### ndotplot installation
-Actually, no installation is needed. The scripts can be downloaded from GitHub and directly used to run.
+After setting up the running environment, this repository can be downloaded and directly used to run.
 ```
 git clone git@github.com:liu3zhenlab/ndotplot.git
 cd ndotplot
